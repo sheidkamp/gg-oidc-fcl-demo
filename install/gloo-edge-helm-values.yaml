@@ -1,0 +1,24 @@
+gloo:
+  gatewayProxies:
+    gatewayProxy:
+      gatewaySettings:
+        accessLoggingService:
+          accessLog:
+          - fileSink:
+              path: /dev/stdout
+              stringFormat: ""
+  # observability:
+  #   deployment:
+  #     logLevel: error
+global:
+  extensions:
+    extAuth:
+      deployment:
+        # Supported log-levels: debug, info, warn, error, panic, fatal
+        logLevel: debug
+    # rateLimit:
+    #   deployment:
+    #     logLevel: error
+    # caching:
+    #   deployment:
+    #     logLevel: error
