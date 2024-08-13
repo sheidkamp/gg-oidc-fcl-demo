@@ -9,13 +9,14 @@ spec:
   virtualHost:
     domains:
     - 'keycloak.example.com'
+    - 'keycloak.example.com:*'
     routes:
     - matchers:
       - prefix: /
       routeAction:
         single:
           upstream:
-            name: keycloak-keycloak-80
+            name: keycloak-keycloak-8080
             namespace: gloo-system
       # options:
       #   prefixRewrite: /

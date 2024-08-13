@@ -8,7 +8,7 @@ metadata:
 spec:
   ports:
   - name: http
-    port: 80
+    port: 8080
     targetPort: 8080
   selector:
     app: keycloak
@@ -36,7 +36,7 @@ spec:
       - name: keycloak
         # image: quay.io/keycloak/keycloak:21.0.2
         image: quay.io/keycloak/keycloak:22.0.5
-        args: ["start-dev"]
+        args: ["start-dev", "--http-port=8080"]
         env:
         - name: KEYCLOAK_ADMIN
           valueFrom:

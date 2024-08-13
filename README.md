@@ -35,7 +35,7 @@ Run the `install/setup.sh` script to setup the environment:
 ./setup.sh
 ```
 
-Run the `install/k8s-coredns-config.sh` script to patch K8S coreDns service to route `keycloak.example.com` to the Gloo Edge `gateway-proxy`. In this example this is needed to allow the AuthConfig that points to Keycloak to resolve `keycloak.example.com` and to route to Keycloak via the Gateway.
+Run the `install/k8s-coredns-config.sh` script to patch K8S coreDns service to route `keycloak.example.com` to the keycloak service. In this example this is needed to allow the AuthConfig that points to Keycloak to resolve `keycloak.example.com` and to route to Keycloak via the Gateway.
 
 ```
 ./k8s-coredns-config.sh
@@ -45,6 +45,12 @@ Note that you might need to restart the ExtAuth server if Keycloak was not yet a
 ```
 kubectl -n gloo-system rollout restart deployment extauth
 ```
+
+## Expose keycloak and example app
+You will need to access the app and keycloak server from outside the Kubernetes cluster, and there are 2 steps that make this possible:
+* Add the `127.0.0.1 api.example.com keycloak.example.com` to `/etc/hosts` so that the apps can be accessed by domain name
+* Port forward the HTTP gateway-proxy port: `kubectl port-forward deploy/gateway-proxy  8080:8080` either in a separate terminal or in the background with `&`
+
 
 ## Setup Keycloak
 
@@ -56,7 +62,7 @@ Run the `keycloak.sh` script to create the OAuth clients and user accounts requi
 
 ## Reproducer
 
-Navigate to http://api.example.com/. You will be redirected to Keycloak to login. Login with:
+Navigate to http://api.example.com:8080/. You will be redirected to Keycloak to login. Login with:
 
 ```
 Username: user1@example.com
@@ -70,9 +76,9 @@ This will:
 - Gloo sets a session cookie on the response to the client, pointing at the session in Redis.
 - Client is redirected to the form.
 
-Next, in a different browser /  browser profile, go to the Keycloak admin console at http://keycloak.example.com and login as admin: `u:admin/p:admin`. Go the "Sessions" menu and delete the session of `user1` that was just created. This will cause `user1`'s refresh-token to no longer be usable (or to be expired).
+Next, in a different browser /  browser profile, go to the Keycloak admin console at http://keycloak.example.com:8080 and login as admin: `u:admin/p:admin`. Go the "Sessions" menu and delete the session of `user1` that was just created. This will cause `user1`'s refresh-token to no longer be usable (or to be expired).
 
-Wait a minute until `user1`'s access-token has expired and hit the application again at http://api.example.com.
+Wait a minute until `user1`'s access-token has expired and hit the application again at http://api.example.com:8080.
 
 Instead of the user being redirected to the Keycloak login screen, the user is redirected to http://www.google.com, which we've set as the `afterLogoutUrl`.
 

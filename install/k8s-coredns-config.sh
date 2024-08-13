@@ -13,7 +13,7 @@ grep -v "rewrite name developer.example.com" coredns-cm.yaml > tmpfile && mv tmp
 
 # Add rewrites for keycloak.example.com and developer.example.com
 sed <<EOF -i'.orig' -e '/ready/ i\
-        rewrite name keycloak.example.com gateway-proxy.gloo-system.svc.cluster.local\
+        rewrite name keycloak.example.com keycloak.keycloak.svc.cluster.local\
         rewrite name developer.example.com gateway-proxy.gloo-system.svc.cluster.local
 ' coredns-cm.yaml
 EOF

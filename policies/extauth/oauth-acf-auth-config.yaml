@@ -9,7 +9,7 @@ spec:
       oauth2:
         oidcAuthorizationCode:
           # afterLogoutUrl: http://www.google.com
-          appUrl: http://api.example.com
+          appUrl: http://api.example.com:8080
           autoMapFromMetadata:
             namespace: solo_authconfig_oidc
           callbackPath: /callback
@@ -21,7 +21,7 @@ spec:
             accessTokenHeader: access_token
             idTokenHeader: id_token
             useBearerSchemaForAuthorization: true
-          issuerUrl: http://keycloak.example.com/realms/master/
+          issuerUrl: http://keycloak.example.com:8080/realms/master/
           logoutPath: /logout
           scopes:
             - email

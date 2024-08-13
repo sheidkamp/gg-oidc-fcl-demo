@@ -7,7 +7,7 @@ export KC_ADMIN_PASS=admin
 export PORTAL_HOST=developer.example.com
 
 
-export KEYCLOAK_URL=http://$KEYCLOAK_HOST
+export KEYCLOAK_URL=http://$KEYCLOAK_HOST:8080
 echo "Keycloak URL: $KEYCLOAK_URL"
 export APP_URL=http://$PORTAL_HOST
 
@@ -55,7 +55,7 @@ CONFIGURE_WEBAPP_CLIENT_JSON=$(cat <<EOM
   "directAccessGrantsEnabled": true, 
   "authorizationServicesEnabled": true, 
   "redirectUris": [
-    "http://api.example.com/callback"
+    "http://api.example.com:8080/callback"
   ], 
   "webOrigins": ["*"]
 }

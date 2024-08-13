@@ -1,6 +1,8 @@
 gloo:
   gatewayProxies:
     gatewayProxy:
+      podTemplate:
+        httpPort: 8080
       gatewaySettings:
         accessLoggingService:
           accessLog:

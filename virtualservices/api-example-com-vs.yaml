@@ -9,6 +9,7 @@ spec:
   virtualHost:
     domains:
     - 'api.example.com'
+    - 'api.example.com:*'
     routes:
     # - matchers:
     #   - prefix: /callback
