@@ -21,10 +21,13 @@ kubectl apply -f apis/httpbin.yaml
 
 printf "\nDeploy OAuth AuthConfig ...\n"
 kubectl apply -f policies/extauth/oauth-acf-auth-config.yaml
+kubectl apply -f policies/extauth/oauth-acf-auth2-config.yaml
 
 printf "\nDeploy VirtualServices ...\n"
 kubectl apply -f virtualservices/api-example-com-vs.yaml
+kubectl apply -f virtualservices/api2-example-com-vs.yaml
 kubectl apply -f virtualservices/keycloak-example-com-vs.yaml
+
 
 # Create a an incorrect OAuth clientSecret which we will use in our test to see what 
 # we log when the clientSecret to access the IdP for Authorization Code Flow is incorrect.

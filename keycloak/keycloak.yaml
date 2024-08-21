@@ -36,7 +36,7 @@ spec:
       - name: keycloak
         # image: quay.io/keycloak/keycloak:21.0.2
         image: quay.io/keycloak/keycloak:22.0.5
-        args: ["start-dev", "--http-port=8080"]
+        args: ["start-dev", "--http-port=8080", "--hostname-admin=keycloak.example.com:8080", "--hostname=keycloak.example.com:8080"]
         env:
         - name: KEYCLOAK_ADMIN
           valueFrom:
