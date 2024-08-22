@@ -49,7 +49,7 @@ kubectl -n gloo-system rollout restart deployment extauth
 ## Expose keycloak and example app
 You will need to access the app and keycloak server from outside the Kubernetes cluster, and there are 2 steps that make this possible:
 * Add the `127.0.0.1 api.example.com keycloak.example.com` to `/etc/hosts` so that the apps can be accessed by domain name
-* Port forward the HTTP gateway-proxy port: `kubectl port-forward deploy/gateway-proxy  8080:8080` either in a separate terminal or in the background with `&`
+* Port forward the HTTP gateway-proxy port: `kubectl port-forward deploy/gateway-proxy 8080:8080 -n gloo-system` either in a separate terminal or in the background with `&`
 
 
 ## Setup Keycloak

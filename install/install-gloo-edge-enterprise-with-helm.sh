@@ -1,6 +1,6 @@
 #!/bin/sh
 
-export GLOO_EDGE_VERSION="1.16.8"
+export GLOO_EDGE_VERSION="1.17.0"
 export GLOO_EDGE_HELM_VALUES_FILE="gloo-edge-helm-values.yaml"
 
 if [ -z "$GLOO_EDGE_LICENSE_KEY" ]
