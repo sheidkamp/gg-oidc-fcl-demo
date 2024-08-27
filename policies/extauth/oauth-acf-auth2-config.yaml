@@ -17,6 +17,8 @@ spec:
           clientSecretRef:
             name: oauth-2
             namespace: gloo-system
+          frontChannelLogout:
+           path: /fc_logout
           headers:
             accessTokenHeader: access_token
             idTokenHeader: id_token
