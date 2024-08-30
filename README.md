@@ -1,27 +1,31 @@
-# Gloo-9574 Reproducer
+# Gloo Gateway - OIDC Front Channel Logout demo
 
-https://github.com/solo-io/gloo/issues/9574
+
+# OIDC Front Channel Logout
+
+Specification: https://openid.net/specs/openid-connect-frontchannel-1_0.html
+
 
 ## Installation
 
-Add Gloo EE Helm repo:
+Add Gloo EE Test Helm repo:
 ```
-helm repo add glooe https://storage.googleapis.com/gloo-ee-helm
-```
-
-Export your Gloo Edge License Key to an environment variable:
-```
-export GLOO_EDGE_LICENSE_KEY={your license key}
+helm repo add gloo-ee-test https://storage.googleapis.com/gloo-ee-test-helm
 ```
 
-Install Gloo Edge:
+Export your Gloo Gateway License Key to an environment variable:
+```
+export GLOO_GATEWAY_LICENSE_KEY={your license key}
+```
+
+Install Gloo Gateway:
 ```
 cd install
-./install-gloo-edge-enterprise-with-helm.sh
+./install-gloo-gateway-enterprise-with-helm.sh
 ```
 
 > NOTE
-> The Gloo Edge version that will be installed is set in a variable at the top of the `install/install-gloo-edge-enterprise-with-helm.sh` installation script.
+> The Gloo Gateway version that will be installed is set in a variable at the top of the `install/install-gloo-gateway-enterprise-with-helm.sh` installation script.
 
 ## Setup the environment
 
@@ -48,13 +52,18 @@ kubectl -n gloo-system rollout restart deployment extauth
 
 ## Expose keycloak and example app
 You will need to access the app and keycloak server from outside the Kubernetes cluster, and there are 2 steps that make this possible:
-* Add the `127.0.0.1 api.example.com keycloak.example.com` to `/etc/hosts` so that the apps can be accessed by domain name
-* Port forward the HTTP gateway-proxy port: `kubectl port-forward deploy/gateway-proxy 8080:8080 -n gloo-system` either in a separate terminal or in the background with `&`
+* Add the `127.0.0.1 api.example.com api2.example.com keycloak.example.com` to `/etc/hosts` so that the apps can be accessed by domain name
 
+You will need to make sure that your Gloo gateway-proxy is accessible on the given ip-address, in our example this is localhost (i.e. `127.0.0.1`).
+When running on Minikube, this can for example be done by creating a tunnel into the Minikube cluster:
+
+```
+minikube -p {profile-name} tunnel
+```
 
 ## Setup Keycloak
 
-Run the `keycloak.sh` script to create the OAuth clients and user accounts required to run the demo. This script will create an OAuth client for our web-application to perform OAuth Authorization Code Flow, an OAuth Client (Service Account) for Client Credentials Grant Flow (not used in this example), and 2 user accounts (`user1@example.com` and `user2@solo.io`).
+Run the `keycloak.sh` script to create the OAuth clients and user accounts required to run the demo. This script will create OAuth clients for our web-applications at `api.example.com` and `api2.example.com` to perform OAuth Authorization Code Flow and 2 user accounts (`user1@example.com` and `user2@solo.io`). The OAuth clients for our web-applications will be configured to be able to use the OIDC Front Channel Logout functionality. Note that we are also automatically configuring the Keycloak Content Security Policy (CSP) so the IFrame that is used by the Front Channel Logout functionality can be properly loaded in the browser.
 
 ```
 ./keycloak.sh
@@ -62,7 +71,7 @@ Run the `keycloak.sh` script to create the OAuth clients and user accounts requi
 
 ## Reproducer
 
-Navigate to http://api.example.com:8080/. You will be redirected to Keycloak to login. Login with:
+Navigate to http://api.example.com/. You will be redirected to Keycloak to login. Login with:
 
 ```
 Username: user1@example.com
@@ -76,11 +85,54 @@ This will:
 - Gloo sets a session cookie on the response to the client, pointing at the session in Redis.
 - Client is redirected to the form.
 
-Next, in a different browser /  browser profile, go to the Keycloak admin console at http://keycloak.example.com:8080 and login as admin: `u:admin/p:admin`. Go the "Sessions" menu and delete the session of `user1` that was just created. This will cause `user1`'s refresh-token to no longer be usable (or to be expired).
+Next, in a different browser tab, go navigate to http://api2.example.com. Since we're already logged into Keycload, we will be automatically able to access the applicatino using single-sign-on.
 
-Wait a minute until `user1`'s access-token has expired and hit the application again at http://api.example.com:8080.
+In the first browser tab, open the "Developer Tools" of your browser so we can observe the HTTP request that are made during the logout flow. Now, navigate to http://api.example.com/logout. This will initiate the OIDC Front Channel Logout flow, which will redirect the browser to the Keycloak logout endpoint. Next, the logout endpoint will load an IFrame that will redirect the browser to all the logout endpoints of the applications to which we are logged in, effectively logging out of all the applications that we've used in our session.
 
-Instead of the user being redirected to the Keycloak login screen, the user is redirected to http://www.google.com, which we've set as the `afterLogoutUrl`.
+You will see the following HTTP Request and Response:
+
+```
+GET http://keycloak.example.com/realms/master/protocol/openid-connect/logout?id_token_hint=eyJhbGciOiJS....&post_logout_redirect_uri=http%3A%2F%2Fapi.example.com
+```
+
+Which will return the following response, which includes the IFrames to logout of our applications:
+
+```
+<div id="kc-content">
+        <div id="kc-content-wrapper">
+
+        <p>You are logging out from following apps</p>
+        <ul>
+            <li>
+                webapp-client-2
+                <iframe src="http://api2.example.com/fc_logout?sid=a3b3ddba-6d8d-456c-b10f-73e82b7dc203&amp;iss=http%3A%2F%2Fkeycloak.example.com%2Frealms%2Fmaster" style="display:none;"></iframe>
+            </li>
+            <li>
+                webapp-client
+                <iframe src="http://api.example.com/fc_logout?sid=a3b3ddba-6d8d-456c-b10f-73e82b7dc203&amp;iss=http%3A%2F%2Fkeycloak.example.com%2Frealms%2Fmaster" style="display:none;"></iframe>
+            </li>
+        </ul>
+            <script>
+                function readystatechange(event) {
+                    if (document.readyState=='complete') {
+                        window.location.replace('http://api.example.com');
+                    }
+                }
+                document.addEventListener('readystatechange', readystatechange);
+            </script>
+            <a id="continue" class="btn btn-primary" href="http://api.example.com">Continue</a>
+        </div>
+      </div>
+```
+
+This will initiate the logout requests to our applications, as can be seen from the HTTP Request/Response flow:
+
+```
+GET http://api2.example.com/fc_logout?sid=a3b3ddba-6d8d-456c-b10f-73e82b7dc203&iss=http%3A%2F%2Fkeycloak.example.com%2Frealms%2Fmaster
+GET http://api.example.com/fc_logout?sid=a3b3ddba-6d8d-456c-b10f-73e82b7dc203&iss=http%3A%2F%2Fkeycloak.example.com%2Frealms%2Fmaster
+```
+
+Finally, the browser is redirected to the logout URL of the application from which the logout was initiated.
 
 ## Conclusion
-When the there is a session in Redis with expired tokens, and the user accesses the application, the user is redirected to the `afterLogoutUrl` instead of the `issuerUrl`. This IMO is incorrect behaviour, as the user should only be redirecred to the `afterLogoutUrl` when the user does an explicit logout, i.e. by hitting the configured `logout` endpoint.
+The OIDC Front Channel Logout functionality of Gloo Gateway allows us to automatically logout of a set of applications when the we logout out of a single application or when we logout on the OIDC Provider directly.
