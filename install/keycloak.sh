@@ -7,7 +7,7 @@ export KC_ADMIN_PASS=admin
 export PORTAL_HOST=developer.example.com
 
 
-export KEYCLOAK_URL=http://$KEYCLOAK_HOST:8080
+export KEYCLOAK_URL=http://$KEYCLOAK_HOST
 echo "Keycloak URL: $KEYCLOAK_URL"
 export APP_URL=http://$PORTAL_HOST
 
@@ -18,7 +18,20 @@ export KEYCLOAK_TOKEN=$(curl -k -d "client_id=admin-cli" -d "username=admin" -d 
 
 [[ -z "$KEYCLOAK_TOKEN" ]] && { echo "Failed to get Keycloak token - check KEYCLOAK_URL and KC_ADMIN_PASS"; exit 1;}
 
-################################################ WebApp Client: webapp-client ################################################
+
+# Configure the Realm. Configuring CSP to support Front Channel Logout for our applications.
+CONFIGURE_REALM_JSON=$(cat <<EOM
+{
+  "browserSecurityHeaders": {
+    "contentSecurityPolicy": "frame-src 'self' http://api.example.com http://api2.example.com; frame-ancestors 'self'; object-src 'none';"
+  }
+}
+EOM
+)
+curl -k -X PUT -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -H "Content-Type: application/json" -d "$CONFIGURE_REALM_JSON" $KEYCLOAK_URL/admin/realms/master
+
+
+# ################################################ WebApp Client: webapp-client ################################################
 # Register the webapp-client
 export WEBAPP_CLIENT_ID=webapp-client
 
@@ -55,9 +68,14 @@ CONFIGURE_WEBAPP_CLIENT_JSON=$(cat <<EOM
   "directAccessGrantsEnabled": true, 
   "authorizationServicesEnabled": true, 
   "redirectUris": [
-    "http://api.example.com:8080/callback"
+    "http://api.example.com/callback"
   ],
   "webOrigins": ["*"],
+  "frontchannelLogout": true,
+  "attributes": {
+    "frontchannel.logout.url": "http://api.example.com/fc_logout",
+    "post.logout.redirect.uris": "http://api.example.com"
+  }
 }
 EOM
 )
@@ -118,9 +136,14 @@ CONFIGURE_WEBAPP_CLIENT_JSON_2=$(cat <<EOM
   "directAccessGrantsEnabled": true, 
   "authorizationServicesEnabled": true, 
   "redirectUris": [
-    "http://api2.example.com:8080/callback"
+    "http://api2.example.com/callback"
   ], 
-  "webOrigins": ["*"]
+  "webOrigins": ["*"],
+  "frontchannelLogout": true,
+  "attributes": {
+    "frontchannel.logout.url": "http://api2.example.com/fc_logout",
+    "post.logout.redirect.uris": "http://api2.example.com"
+  }
 }
 EOM
 )
@@ -142,7 +165,7 @@ CONFIGURE_GROUP_CLAIM_IN_JWT_JSON=$(cat <<EOM
 }
 EOM
 )
-curl -k -X POST -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -H "Content-Type: application/json" -d "$CONFIGURE_GROUP_CLAIM_IN_JWT_JSON" $KEYCLOAK_URL/admin/realms/master/clients/${REG_ID}/protocol-mappers/models
+curl -k -X POST -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -H "Content-Type: application/json" -d "$CONFIGURE_GROUP_CLAIM_IN_JWT_JSON" $KEYCLOAK_URL/admin/realms/master/clients/${REG_ID_2}/protocol-mappers/models
 
 
 
@@ -192,71 +215,3 @@ CREATE_USER_TWO_JSON=$(cat <<EOM
 EOM
 )
 curl -k -X POST -H "Authorization: Bearer ${KEYCLOAK_TOKEN}"  -H "Content-Type: application/json" -d "$CREATE_USER_TWO_JSON" $KEYCLOAK_URL/admin/realms/master/users
-
-
-
-
-
-
-################################################ Service Account: portal-sa ################################################
-
-# Register Service Account Client
-export PORTAL_SA_CLIENT_ID=portal-sa
-CREATE_PORTAL_SA_CLIENT_JSON=$(cat <<EOM
-{ 
-  "clientId": "$PORTAL_SA_CLIENT_ID" 
-}
-EOM
-)
-read -r regid secret <<<$(curl -k -X POST  -H "Authorization: bearer ${KEYCLOAK_TOKEN}" -H "Content-Type:application/json" -d "$CREATE_PORTAL_SA_CLIENT_JSON" ${KEYCLOAK_URL}/realms/master/clients-registrations/default|  jq -r '[.id, .secret] | @tsv')
-
-export PORTAL_SA_CLIENT_SECRET=${secret}
-export REG_ID=${regid}
-[[ -z "$PORTAL_SA_CLIENT_SECRET" || $PORTAL_SA_CLIENT_SECRET == null ]] && { echo "Failed to create client in Keycloak"; exit 1;}
-
-printf "\nCreated service account:\n"
-printf "Client-ID: $PORTAL_SA_CLIENT_ID\n"
-printf "Client-Secret: $PORTAL_SA_CLIENT_SECRET\n\n"
-export CLIENT_ID=$PORTAL_SA_CLIENT_ID
-export CLIENT_SECRET=$PORTAL_SA_CLIENT_SECRET
-
-#Configure the Portal Service Account
-CONFIGURE_CLIENT_SERVICE_ACCOUNT_JSON=$(cat <<EOM
-{
-  "publicClient": false, 
-  "standardFlowEnabled": false, 
-  "serviceAccountsEnabled": true, 
-  "directAccessGrantsEnabled": false, 
-  "authorizationServicesEnabled": false
-}
-EOM
-)
-curl -k -X PUT  -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -H "Content-Type: application/json" -d "$CONFIGURE_CLIENT_SERVICE_ACCOUNT_JSON" $KEYCLOAK_URL/admin/realms/master/clients/${REG_ID}
-
-# Add the group attribute to the JWT token returned by Keycloak
-# Add the group attribute in the JWT token returned by Keycloak
-CONFIGURE_GROUP_CLAIM_IN_JWT_JSON=$(cat <<EOM
-{
-  "name": "group", 
-  "protocol": "openid-connect", 
-  "protocolMapper": "oidc-usermodel-attribute-mapper", 
-  "config": {
-    "claim.name": "group", 
-    "jsonType.label": "String", 
-    "user.attribute": "group", 
-    "id.token.claim": "true", 
-    "access.token.claim": "true"
-  }
-}
-EOM
-)
-curl -k -H "Authorization: Bearer ${KEYCLOAK_TOKEN}" -X POST -H "Content-Type: application/json" -d "$CONFIGURE_GROUP_CLAIM_IN_JWT_JSON" $KEYCLOAK_URL/admin/realms/master/clients/${REG_ID}/protocol-mappers/models
-
-
-# Additional setup:
-# openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout tls.key -out tls.crt -subj "/CN=api.example.com" 
-# kubectl create secret tls upstream-tls-app --key tls.key --cert tls.crt --namespace gloo-system
-# openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout tls.key -out tls.crt -subj "/CN=api2.example.com" 
-# kubectl create secret tls upstream-tls-app-2 --key tls.key --cert tls.crt --namespace gloo-system
-# openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout tls.key -out tls.crt -subj "/CN=keycloak.example.com" 
-# kubectl create secret tls upstream-tls-keycloak --key tls.key --cert tls.crt --namespace gloo-system
