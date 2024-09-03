@@ -16,7 +16,7 @@ spec:
       routeAction:
         single:
           upstream:
-            name: keycloak-keycloak-80
+            name: keycloak-keycloak-8080
             namespace: gloo-system
       # options:
       #   prefixRewrite: /

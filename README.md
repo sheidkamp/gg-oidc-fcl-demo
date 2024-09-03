@@ -55,11 +55,8 @@ You will need to access the app and keycloak server from outside the Kubernetes 
 * Add the `127.0.0.1 api.example.com api2.example.com keycloak.example.com` to `/etc/hosts` so that the apps can be accessed by domain name
 
 You will need to make sure that your Gloo gateway-proxy is accessible on the given ip-address, in our example this is localhost (i.e. `127.0.0.1`).
-When running on Minikube, this can for example be done by creating a tunnel into the Minikube cluster:
-
-```
-minikube -p {profile-name} tunnel
-```
+When running on Kind, this can for example be done by port-forwarding to the gateway:
+* `kubectl port-forward deploy/gateway-proxy 8080:8080 -n gloo-system` either in a separate terminal or in the background with `&`
 
 ## Setup Keycloak
 
@@ -71,7 +68,7 @@ Run the `keycloak.sh` script to create the OAuth clients and user accounts requi
 
 ## Reproducer
 
-Navigate to http://api.example.com/. You will be redirected to Keycloak to login. Login with:
+Navigate to http://api.example.com:8080/. You will be redirected to Keycloak to login. Login with:
 
 ```
 Username: user1@example.com
@@ -85,9 +82,9 @@ This will:
 - Gloo sets a session cookie on the response to the client, pointing at the session in Redis.
 - Client is redirected to the form.
 
-Next, in a different browser tab, go navigate to http://api2.example.com. Since we're already logged into Keycload, we will be automatically able to access the applicatino using single-sign-on.
+Next, in a different browser tab, go navigate to http://api2.example.com:8080. Since we're already logged into Keycload, we will be automatically able to access the applicatino using single-sign-on.
 
-In the first browser tab, open the "Developer Tools" of your browser so we can observe the HTTP request that are made during the logout flow. Now, navigate to http://api.example.com/logout. This will initiate the OIDC Front Channel Logout flow, which will redirect the browser to the Keycloak logout endpoint. Next, the logout endpoint will load an IFrame that will redirect the browser to all the logout endpoints of the applications to which we are logged in, effectively logging out of all the applications that we've used in our session.
+In the first browser tab, open the "Developer Tools" of your browser so we can observe the HTTP request that are made during the logout flow. Now, navigate to http://api.example.com:8080/logout. This will initiate the OIDC Front Channel Logout flow, which will redirect the browser to the Keycloak logout endpoint. Next, the logout endpoint will load an IFrame that will redirect the browser to all the logout endpoints of the applications to which we are logged in, effectively logging out of all the applications that we've used in our session.
 
 You will see the following HTTP Request and Response:
 
@@ -105,22 +102,22 @@ Which will return the following response, which includes the IFrames to logout o
         <ul>
             <li>
                 webapp-client-2
-                <iframe src="http://api2.example.com/fc_logout?sid=a3b3ddba-6d8d-456c-b10f-73e82b7dc203&amp;iss=http%3A%2F%2Fkeycloak.example.com%2Frealms%2Fmaster" style="display:none;"></iframe>
+                <iframe src="http://api2.example.com:8080/fc_logout?sid=a3b3ddba-6d8d-456c-b10f-73e82b7dc203&amp;iss=http%3A%2F%2Fkeycloak.example.com%2Frealms%2Fmaster" style="display:none;"></iframe>
             </li>
             <li>
                 webapp-client
-                <iframe src="http://api.example.com/fc_logout?sid=a3b3ddba-6d8d-456c-b10f-73e82b7dc203&amp;iss=http%3A%2F%2Fkeycloak.example.com%2Frealms%2Fmaster" style="display:none;"></iframe>
+                <iframe src="http://api.example.com:8080/fc_logout?sid=a3b3ddba-6d8d-456c-b10f-73e82b7dc203&amp;iss=http%3A%2F%2Fkeycloak.example.com%2Frealms%2Fmaster" style="display:none;"></iframe>
             </li>
         </ul>
             <script>
                 function readystatechange(event) {
                     if (document.readyState=='complete') {
-                        window.location.replace('http://api.example.com');
+                        window.location.replace('http://api.example.com:8080');
                     }
                 }
                 document.addEventListener('readystatechange', readystatechange);
             </script>
-            <a id="continue" class="btn btn-primary" href="http://api.example.com">Continue</a>
+            <a id="continue" class="btn btn-primary" href="http://api.example.com:8080">Continue</a>
         </div>
       </div>
 ```
@@ -128,8 +125,8 @@ Which will return the following response, which includes the IFrames to logout o
 This will initiate the logout requests to our applications, as can be seen from the HTTP Request/Response flow:
 
 ```
-GET http://api2.example.com/fc_logout?sid=a3b3ddba-6d8d-456c-b10f-73e82b7dc203&iss=http%3A%2F%2Fkeycloak.example.com%2Frealms%2Fmaster
-GET http://api.example.com/fc_logout?sid=a3b3ddba-6d8d-456c-b10f-73e82b7dc203&iss=http%3A%2F%2Fkeycloak.example.com%2Frealms%2Fmaster
+GET http://api2.example.com:8080/fc_logout?sid=a3b3ddba-6d8d-456c-b10f-73e82b7dc203&iss=http%3A%2F%2Fkeycloak.example.com%2Frealms%2Fmaster
+GET http://api.example.com:8080/fc_logout?sid=a3b3ddba-6d8d-456c-b10f-73e82b7dc203&iss=http%3A%2F%2Fkeycloak.example.com%2Frealms%2Fmaster
 ```
 
 Finally, the browser is redirected to the logout URL of the application from which the logout was initiated.

@@ -7,7 +7,7 @@ export KC_ADMIN_PASS=admin
 export PORTAL_HOST=developer.example.com
 
 
-export KEYCLOAK_URL=http://$KEYCLOAK_HOST
+export KEYCLOAK_URL=http://$KEYCLOAK_HOST:8080
 echo "Keycloak URL: $KEYCLOAK_URL"
 export APP_URL=http://$PORTAL_HOST
 
@@ -23,7 +23,7 @@ export KEYCLOAK_TOKEN=$(curl -k -d "client_id=admin-cli" -d "username=admin" -d 
 CONFIGURE_REALM_JSON=$(cat <<EOM
 {
   "browserSecurityHeaders": {
-    "contentSecurityPolicy": "frame-src 'self' http://api.example.com http://api2.example.com; frame-ancestors 'self'; object-src 'none';"
+    "contentSecurityPolicy": "frame-src 'self' http://api.example.com:8080 http://api2.example.com:8080; frame-ancestors 'self'; object-src 'none';"
   }
 }
 EOM
@@ -68,13 +68,13 @@ CONFIGURE_WEBAPP_CLIENT_JSON=$(cat <<EOM
   "directAccessGrantsEnabled": true, 
   "authorizationServicesEnabled": true, 
   "redirectUris": [
-    "http://api.example.com/callback"
+    "http://api.example.com:8080/callback"
   ],
   "webOrigins": ["*"],
   "frontchannelLogout": true,
   "attributes": {
-    "frontchannel.logout.url": "http://api.example.com/fc_logout",
-    "post.logout.redirect.uris": "http://api.example.com"
+    "frontchannel.logout.url": "http://api.example.com:8080/fc_logout",
+    "post.logout.redirect.uris": "http://api.example.com:8080"
   }
 }
 EOM
@@ -136,13 +136,13 @@ CONFIGURE_WEBAPP_CLIENT_JSON_2=$(cat <<EOM
   "directAccessGrantsEnabled": true, 
   "authorizationServicesEnabled": true, 
   "redirectUris": [
-    "http://api2.example.com/callback"
+    "http://api2.example.com:8080/callback"
   ], 
   "webOrigins": ["*"],
   "frontchannelLogout": true,
   "attributes": {
-    "frontchannel.logout.url": "http://api2.example.com/fc_logout",
-    "post.logout.redirect.uris": "http://api2.example.com"
+    "frontchannel.logout.url": "http://api2.example.com:8080/fc_logout",
+    "post.logout.redirect.uris": "http://api2.example.com:8080"
   }
 }
 EOM
