@@ -1,6 +1,6 @@
 #!/bin/sh
 
-export GLOO_GATEWAY_VERSION="1.18.0-beta1-bfront-channel-logout-828909a"
+export GLOO_GATEWAY_VERSION="1.18.0-beta1-bfront-channel-logout-cda322f"
 export GLOO_GATEWAY_HELM_VALUES_FILE="gloo-edge-helm-values.yaml"
 
 if [ -z "$GLOO_GATEWAY_LICENSE_KEY" ]
